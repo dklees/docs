@@ -49,6 +49,16 @@
         ]
       },
       {
+        "tab": "TQP",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+            "DK/DK1"
+          ]
+          }]
+      },
+      {
         "tab": "API reference",
         "groups": [
           {
