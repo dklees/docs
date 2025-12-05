@@ -1,3 +1,225 @@
 ---
 description: "This is a test page"
 ---
+
+# Resecurity Action
+
+The web format of this guide reflects the most current release. Guides for older iterations are available in [PDF format](#pdf-guides).
+
+---
+
+## Integration Details
+
+ThreatQuotient provides the following details for this integration:
+
+| **Setting** | **Value** |
+|------------|-----------|
+| **Current Integration Version** | 1.0.0 |
+| **Compatible with ThreatQ Versions** | >= 5.29.0 |
+| **ThreatQ TQO License Required** | Yes |
+| **Support Tier** | ThreatQ Supported |
+
+---
+
+## Introduction
+
+The Resecurity Action integration enriches indicators with threat intelligence data from Resecurity, a cybersecurity provider offering a unified platform for Cyber Threat Intelligence (CTI), Digital Risk Management, and Endpoint Protection.
+
+**Available Action:**
+
+- **Resecurity Data Breaches Enrichment** — enriches indicators with information about data breaches.
+
+**Compatible Indicator Types:**
+
+- Emails  
+- FQDNs  
+
+**Enriched Object Types:**
+
+- Indicators  
+- Reports  
+
+> **Note:** This action requires an active ThreatQ TDR Orchestrator (TQO) license.
+
+---
+
+## Prerequisites
+
+- Active ThreatQ TDR Orchestrator (TQO) license  
+- Resecurity API Key  
+- ThreatQ data collection containing at least:
+  - Email indicators  
+  - FQDN indicators  
+
+---
+
+## Installation
+
+> **Note:** These steps are the same for installation or upgrade.
+
+1. Log into <https://marketplace.threatq.com/>.
+2. Download the action zip file.
+3. Go to your ThreatQ integrations management page.
+4. Click **Add New Integration**.
+5. Upload the action zip file via:
+   - Drag and drop  
+   - **Click to Browse**
+
+> **Note:**  
+> ThreatQ will notify if the action already exists or if config changes will overwrite current settings.
+
+You must still configure the integration after installation.
+
+---
+
+## Configuration
+
+> **Note:** ThreatQuotient does not issue API keys for external vendors.
+
+Steps:
+
+1. Go to Integrations Management in ThreatQ.
+2. Filter by **Actions** (optional).
+3. Open the Resecurity Action entry.
+4. Enter configuration parameters.
+
+### Configuration Parameters
+
+| Parameter | Description |
+|----------|-------------|
+| **API Key** | Used to authenticate with Resecurity. |
+| **Enable SSL Certificate Verification** | Validates SSL certificate. |
+| **Disable Proxies** | Ignores ThreatQ proxy settings. |
+| **Email Address Context Filter** | Select context to ingest: Username *(default)*, Company *(default)*, Country *(default)*, City, Industry, Job Title |
+| **Breach Report Context Filter** | Select context: Compromised Data *(default)*, Geography *(default)*, Accounts *(default)*, Score *(default)* |
+| **Objects per run** | Max objects processed per run. Default: `5000`. |
+
+Save your changes when finished.
+
+---
+
+# Actions
+
+## Available Action
+
+| Action | Description | Object Type | Subtypes |
+|--------|-------------|-------------|----------|
+| **Resecurity Data Breaches Enrichment** | Enrich indicators with data breach information. | Indicator | Email Address, FQDN |
+
+---
+
+# Resecurity Data Breaches Enrichment
+
+Queries Resecurity for known breaches associated with an email or domain. Results ingested as ThreatQ Reports.
+
+### Endpoint
+
+```
+GET https://app.resecurity.com/api/breaches/index
+```
+
+### Sample Query Parameters
+
+```json
+{
+  "query": "threatq.com",
+  "per-page": 50
+}
+```
+
+### Sample JSON Response
+
+```json
+[
+  {
+    "email": "michel.huffaker@threatq.com",
+    "id": 19643651173,
+    "info": {
+      "address1": "11400 COMMERCE PARK DR SUITE 200",
+      "city": "RESTON",
+      "company_name": "THREATQUOTIENT",
+      "company_revenue": "$10-49 Million",
+      "company_size": "100-249",
+      "company_url": "THREATQ.COM",
+      "country": "US",
+      "data_file": "PAMPANGA.TALDISCOVERY.US.10.11.19",
+      "data_source": "Pampanga",
+      "first_name": "MICHEL",
+      "industry": "Software, Internet and Technology",
+      "job_title": "DIRECTOR THREAT INTELLIGENCE",
+      "last_name": "HUFFAKER",
+      "state": "VA",
+      "zip": "20191"
+    },
+    "source": {
+      "accounts": 121877048,
+      "collect_date": 1712872800,
+      "compromised_data": ["Email addresses"],
+      "geography": ["Canada"],
+      "id": 17775,
+      "meta": ["Large-scale breach (1M+ victims)"],
+      "name": "pureincubation.com contacts",
+      "score": 100
+    },
+    "username": "MICHEL HUFFAKER"
+  }
+]
+```
+
+---
+
+## Default Mapping
+
+| Feed Path | ThreatQ Entity | Type / Attribute | Published Date | Example | Notes |
+|-----------|----------------|------------------|----------------|---------|-------|
+| `.source.name` | Report.Value | Report | `.source.collect_date` | Data Breach: pureincubation.com contacts | Prepends `"Data Breach:"` |
+| `.source.description` | Report.Description | — | — | — | — |
+| `.source.compromised_data` | Report.Attribute | Compromised Data | `.source.collect_date` | Email addresses | User-configurable |
+| `.source.geography` | Report.Attribute | Geography | `.source.collect_date` | Canada | User-configurable |
+| `.source.accounts` | Report.Attribute | Accounts | `.source.collect_date` | 121877048 | Updatable |
+| `.source.score` | Report.Attribute | Score | `.source.collect_date` | 100 | Updatable |
+| `.email` | Related Indicator.Value | Email Address | — | michel.huffaker@threatq.com | — |
+| `.username` | Related Indicator.Attribute | Username | — | MICHEL HUFFAKER | User-configurable |
+| `.info.company_name` | Related Indicator.Attribute | Company | — | THREATQUOTIENT | User-configurable |
+| `.info.country` | Related Indicator.Attribute | Country | — | US | User-configurable |
+| `.info.city` | Related Indicator.Attribute | City | — | RESTON | User-configurable |
+| `.info.industry` | Related Indicator.Attribute | Industry | — | Software, Internet and Technology | User-configurable |
+| `.info.job_title` | Related Indicator.Attribute | Job Title | — | DIRECTOR THREAT INTELLIGENCE | User-configurable |
+
+**Additional fields added to email description:**  
+`.info.address1`, `.info.city`, `.info.country`, `.info.company_name`, `.info.company_revenue`, `.info.company_url`, `.info.data_file`, `.info.data_source`, `.info.first_name`, `.info.industry`, `.info.job_area`, `.info.job_level`, `.info.last_name`.
+
+---
+
+# Enriched Data Metrics
+
+| Metric | Value |
+|--------|--------|
+| **Run Time** | 3 minutes |
+| **Indicators** | 300 |
+| **Indicator Attributes** | 2400 |
+| **Reports** | 100 |
+| **Report Attributes** | 400 |
+
+---
+
+# Known Issues / Limitations
+
+- `Accounts` and `Score` attributes are updatable, but final values may differ depending on ingestion order.  
+- `Report` and `Email` descriptions are also updatable and may vary.  
+- Ingestion is capped at **100 pages (5,000 indicators)** per input indicator.
+
+---
+
+# Change Log
+
+### **Version 1.0.0**
+- Initial release
+
+---
+
+# PDF Guides {#pdf-guides}
+
+| Document | ThreatQ Version |
+|----------|------------------|
+| [Resecurity Action Guide v1.0.0](../../assets/PDFs/Actions/Resecurity_Action_Guide_v1.0.0.pdf) | 5.29.0 or Greater |
