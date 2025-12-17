@@ -54,8 +54,8 @@
           {
             "group": "Overview",
             "pages": [
-            "DK/DK1"
-        
+                       "DK/DK1",
+            "DK2/DK2"        
           ]
           }]
       },
@@ -115,8 +115,7 @@
           {
             "group": "Overview",
             "pages": [
-            "DK/DK1",
-            "DK2/DK2"
+            "DK/DK1"
           ]
           }]
       },
