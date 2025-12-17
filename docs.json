@@ -49,7 +49,67 @@
         ]
       },
       {
-        "tab": "TQP",
+        "tab": "CDFs",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+            "DK/DK1"
+          ]
+          }]
+      },
+       {
+        "tab": "Operations",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+            "DK/DK1"
+          ]
+          }]
+      },
+       {
+        "tab": "APPs",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+            "DK/DK1"
+          ]
+          }]
+      },
+      {
+        "tab": "Custom Connectors",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+            "DK/DK1"
+          ]
+          }]
+      },
+        {
+        "tab": "TAXII Feeds",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+            "DK/DK1"
+          ]
+          }]
+      },
+        {
+        "tab": "Exports",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+            "DK/DK1"
+          ]
+          }]
+      },
+      {
+        "tab": "Misc",
         "groups": [
           {
             "group": "Overview",
