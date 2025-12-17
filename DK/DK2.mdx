@@ -1,0 +1,177 @@
+---
+title: "DK2"
+---
+
+.. _common_feed_errors:
+
+Common Feed Errors
+==================
+
+..  toctree::
+    :maxdepth: 3
+    :caption: Content:
+
+This page lays out some commonly seen Feed Run errors, their possible causes, and some suggested solutions for when one
+encounters them. Generally, errors that arise during a Feed Run are stored in the API and shown in the Feed Activity Log
+in the ThreatQ UI. While error messages are displayed in the ThreatQ UI, one can find the associated Stack Traces for
+Feed Run errors and other more detailed information within Dynamo's logs.
+
+For information on the various stages of a Feed Run and writing a definition, see :ref:`feed-definitions`.
+
+Source Errors
+-------------
+As the :ref:`source-definition` section of a Feed deals with pulling data from some provider, errors arising within the
+Source section's processing generally have to do with error codes returned by the provider or data transfer errors.
+
+Source errors are highly disruptive to a Feed Run and will cause the run to immediately complete with errors. Errors
+during the Source section's processing are always reported in this format:
+
+..  code-block:: text
+
+    Error fetching data from provider: <Error Message>
+
+..  note:: If a run completes with errors, the data ingested up to that point will still appear in ThreatQ.
+
+More often than not, the Source section will be dealing with some kind of HTTP request(s). As such, Source section
+errors will usually cite some HTTP Status Code. A list of
+`HTTP Response Status Codes <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status>`_ should be consulted to
+determine what the Status Code in question means. Dynamo considers any Status Code between ``400`` and ``599`` to be an
+error code, and will raise the error in that case.
+
+The table below lays out some of the common HTTP error Status Codes and what each generally means in the context of a
+Feed Run:
+
++---------------------------+------------------------------------------------------------------------------------------+
+| Status Code               | Description                                                                              |
++===========================+==========================================================================================+
+| 400 Bad Request           | The request as sent was considered malformed by the server that received it. Generally,  |
+|                           | this means some field in the Source section is incorrectly configured.                   |
++---------------------------+------------------------------------------------------------------------------------------+
+| 401 Unauthorized          | The request either lacked authentication credentials entirely or the supplied            |
+|                           | credentials were expired.                                                                |
++---------------------------+------------------------------------------------------------------------------------------+
+| 403 Forbidden             | The authentication credentials sent with the request do not have the necessary           |
+|                           | permissions to access the endpoint in question.                                          |
++---------------------------+------------------------------------------------------------------------------------------+
+| 404 Not Found             | The endpoint has moved and is no longer available at the requested URL. If the Feed Run  |
+|                           | had previously worked without issue, this may mean that the provider has updated their   |
+|                           | API and changed the target endpoint's URL.                                               |
++---------------------------+------------------------------------------------------------------------------------------+
+| 500 Internal Server Error | Something went wrong when the server was processing the request. It may be that the      |
+|                           | Source section is configured incorrectly, or the provider's server is behaving in an     |
+|                           | unexpected manner.                                                                       |
++---------------------------+------------------------------------------------------------------------------------------+
+| 503 Service Unavailable   | The server is unavailable because it is down or overloaded. This is a provider issue     |
+|                           | that cannot be readily fixed from within a Feed.                                         |
++---------------------------+------------------------------------------------------------------------------------------+
+| 504 Gateway Time-out      | The server is not able to serve a response in time. This is a provider issue that cannot |
+|                           | be readily fixed from within a Feed.                                                     |
++---------------------------+------------------------------------------------------------------------------------------+
+
+Outside of HTTP, there are other networking problems that can occur that cannot be readily fixed from within a Feed. The
+following have been commonly observed when dealing with difficult or offline servers:
+
+* ``ClientOSError(104, 'Connection reset by peer')``
+* ``Connect call failed (<Provider IP>, 443)``
+* ``ServerDisconnectedError(None,)``
+
+For the ``ServerDisconnectedError``, you may want to ensure that firewall rules and proxies are not blocking outbound
+communication.
+
+Filter Chain Errors
+-------------------
+The most common place to encounter errors during a Feed Run is within the :ref:`filter-chain`.
+
+Errors during Filter Chain processing are always reported in this format:
+
+..  code-block:: text
+
+    Error applying filter <Filter Class> to value <Value>: <Exception>
+
+* ``Filter Class`` relates which Filter raised the error along with that Filter's construction arguments. In the case of
+  Filters like the :ref:`filter-mapping-filter`, the Filter's construction arguments may be quite long as they contain
+  the definition of various sub-filters. Further debugging will be needed in these cases in order to determine exactly
+  which of the sub-filters is causing the Feed Run error.
+* ``Value`` is the value that was being processed when the error was raised. In the case of an exceedingly long value,
+  the value will be truncated at 100 characters for the error message show in the ThreatQ UI. If this happens, the value
+  will still appear in full when viewing Dynamo's logs.
+
+An error within the Filter Chain can have different effects on a Feed Run depending on where it occurs within the Filter
+Chain:
+
+* Errors at the beginning of the Filter Chain could prevent the entire data set from being ingested.
+* Filter errors in the Filter Chain that come after an :ref:`iterate-filter` may affect only a few objects or all
+  objects in the run depending on the nature of the error.
+
+In any case, an error within the Filter Chain will result in the Feed completing with errors. The following are some
+examples of Filter Chain errors that are commonly encountered:
+
+Unexpected StreamReader Value
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The very first Filter in the Filter Chain can raise an error referencing a ``StreamReader`` when some kind of text value
+was actually expected. For instance, when using the :ref:`parse-json-filter`:
+
+..  code-block:: text
+
+    Error applying filter ParseJSON() to value <StreamReader 397 bytes eof>: the JSON object must be str, not 'StreamReader'
+
+A ``StreamReader`` is passed to the Filter Chain from the Source section when the Source section cannot determine how to
+decode the response it received from the server. This is usually due to the provider not returning an correct
+``Content-Type`` header with the response.
+
+To resolve this error, the Source section needs to specify an appropriate ``response_content_type`` so that it knows
+what type of data response to expect. See :ref:`http-source` for more information on the ``response_content_type`` flag
+and other Source configuration arguments.
+
+Filter-Mapping KeyError
+^^^^^^^^^^^^^^^^^^^^^^^
+Feeds can start raising Filter-Mapping Filter errors that resemble the following:
+
+..  code-block:: text
+
+    Error applying filter FilterMapping(...) to value {...}: KeyError('some_key',)
+
+This error means that the key specified within the ``KeyError`` is not present on the value dictionary the
+Filter-Mapping Filter is formatting. Generally, this happens when a provider tweaks their response data structure and
+decides some key / value pair will no longer be present for every object they return.
+
+To resolve this error, the Filter Chain will need to be updated so that the now potentially missing key is given a
+default value. Usually this is accomplished with the :ref:`set-default-filter`.
+
+Reporting and Ingestion Errors
+------------------------------
+
+Report Section Errors
+^^^^^^^^^^^^^^^^^^^^^
+Feed Run errors within the :ref:`Report Section <cdf-reporting>` are rather rare as long as the CDF writer follows the
+correct syntax. Errors that can occur here would be evidenced by Feed Runs completing successfully but never ingesting
+any objects. In this case, the Dynamo logs should be investigated to see if any Unhandled Exceptions have occurred.
+
+Batch Failures
+^^^^^^^^^^^^^^
+A Feed Run will raise a failed Batch error when a set of objects fails to be ingested via one the API's consume
+endpoints. Before being marked as failed, a Batch will be retried up to 10 times (by default). If a Batch is marked as
+failed, the Feed Run in turn will complete with errors. Other successful batches will still have their data ingested
+into ThreatQ.
+
+Batch failure errors are always of the following form:
+
+..  code-block:: text
+
+    Failed batch encountered while parsing response for Batch <Feed Name> TQAPIAuth:<Object Type>#<Batch UUID>. Exception: <Error Message>.
+
+The following are error messages commonly found with failed Batches:
+
+* ``ClientResponseError("500, message='Internal Server Error'",)`` - Some error was raised by the API while processing
+  the consume request. An accompanying Stack Trace should be found in the API's ``laravel.log``. More information about
+  the Batch request data can be found in the Dynamo log if the process is running at log level **2** or lower. At this
+  level, Dynamo will log out the request and response data bodies of Batches.
+* ``TimeoutError()`` - Due to system load, the API was not able to process the consume request fast enough to respond.
+  In this case, general system and feed performance should be investigated.
+
+Ingestion Issues
+^^^^^^^^^^^^^^^^
+If Feed Run data seems missing or incomplete after being ingested into ThreatQ, one can investigate the data as it was
+consumed by running Dynamo at log level **9** or lower. At this level, Dynamo will log out any normalization issues or
+error messages from consume that are ignored during normal processing. If log messages about normalization are found to
+correlate with suspected missing data, please consult with ThreatQ Support to see if the issue is already known.
